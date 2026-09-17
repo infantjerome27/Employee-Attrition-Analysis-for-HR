@@ -3,7 +3,7 @@ import numpy as np
 import plotly.express as px
 import streamlit as st
 from sklearn.compose import ColumnTransformer
-from sklearn.ensemble import RandomForestClassifier
+from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import classification_report, confusion_matrix
 from sklearn.model_selection import train_test_split
@@ -46,6 +46,8 @@ col2.metric("Attrition Rate", f"{(df['Attrition'].eq('Yes').mean() * 100):.1f}%"
 col3.metric("Average Age", f"{df['Age'].mean():.1f} yrs")
 col4.metric("Average Salary", f"${df['Salary'].mean():,.0f}")
 
+st.download_button("Download Dataset as CSV", data=df.to_csv(index=False).encode('utf-8'), file_name="employee_attrition.csv", mime="text/csv")
+
 st.subheader("Attrition by department and salary band")
 left, right = st.columns(2)
 attrition_department = df.groupby("Department")["Attrition"].apply(lambda s: (s == "Yes").mean()).reset_index(name="Attrition Rate")
@@ -81,9 +83,11 @@ preprocessor = ColumnTransformer(
     ]
 )
 
-model_choice = st.selectbox("Choose classification algorithm", ["Logistic Regression", "Random Forest"])
+model_choice = st.selectbox("Choose classification algorithm", ["Logistic Regression", "Random Forest", "Gradient Boosting"])
 if model_choice == "Logistic Regression":
     model = LogisticRegression(max_iter=2000)
+elif model_choice == "Gradient Boosting":
+    model = GradientBoostingClassifier(random_state=42)
 else:
     model = RandomForestClassifier(n_estimators=200, random_state=42)
 
@@ -103,7 +107,12 @@ feature_names = pipeline.named_steps['preprocessor'].get_feature_names_out()
 feature_importance = None
 if model_choice == "Random Forest":
     feature_importance = pd.Series(
-        model.feature_importances_,
+        pipeline.named_steps['classifier'].feature_importances_,
+        index=feature_names,
+    ).sort_values(ascending=False)
+elif model_choice == "Gradient Boosting":
+    feature_importance = pd.Series(
+        pipeline.named_steps['classifier'].feature_importances_,
         index=feature_names,
     ).sort_values(ascending=False)
 else:
